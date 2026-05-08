@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AudioPlugin formatVersion="1" pluginVersion="@PROJECT_VERSION@">
+  <factoryInfo classID="${TIGERFLAME_PROCESSOR_UID}" vendor="TigerFlame" url="https://github.com/rjungemann/tigerflame-vst3" email="">
+    <vendorVersion>@PROJECT_VERSION@</vendorVersion>
+    <sdkVersion>VST 3.7.7</sdkVersion>
+  </factoryInfo>
+  <plugIn classID="${TIGERFLAME_PROCESSOR_UID}" category="Instrument" cardinality="single">
+    <plugInName>TigerFlame</plugInName>
+    <shortPlugInName>TigerFlame</shortPlugInName>
+    <vendor>TigerFlame</vendor>
+    <version>@PROJECT_VERSION@</version>
+    <sdkVersion>VST 3.7.7</sdkVersion>
+    <subCategories>
+      <subCategory name="Synth"/>
+    </subCategories>
+    <hardwareDependencies/>
+    <hostDependencies/>
+    <io>
+      <audio>
+        <input channels="2" busName="Audio Input" isActive="false"/>
+        <output channels="2" busName="Audio Output" isActive="true"/>
+      </audio>
+      <midi>
+        <input channels="16" busName="MIDI Input" isActive="true"/>
+        <output channels="16" busName="MIDI Output" isActive="false"/>
+      </midi>
+      <silentBypass>true</silentBypass>
+    </io>
+    <presets/>
+  </plugIn>
+  <controller classID="${TIGERFLAME_CONTROLLER_UID}" cardinality="single">
+    <plugInName>TigerFlame Controller</plugInName>
+    <vendor>TigerFlame</vendor>
+    <version>@PROJECT_VERSION@</version>
+    <sdkVersion>VST 3.7.7</sdkVersion>
+  </controller>
+</AudioPlugin>

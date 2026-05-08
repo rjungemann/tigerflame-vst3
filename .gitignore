@@ -1,0 +1,44 @@
+# C/C++
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+*.ncb
+*.pdb
+*.ilk
+*.suo
+*.user
+*.userosscache
+*.sdf
+*.opensdf
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# CMake
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+Makefile
+*.cmake
+
+# IDE
+.idea/
+.vs/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# VST3
+*.vst3
+
+# Test outputs
+/tests/build/
