@@ -1,0 +1,78 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Release]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install cmake ninja
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          update: true
+          install: >-
+            cmake
+            ninja
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+
+      - name: Configure CMake (VST3 + CLAP)
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DBUILD_VST3=ON \
+            -DBUILD_CLAP=ON \
+            -DBUILD_TESTS=ON \
+            -DBUILD_STANDALONE=OFF \
+            -G Ninja
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }} -j
+
+      - name: Run tests
+        run: |
+          cd build
+          ctest --output-on-failure -j
+
+      - name: Upload VST3 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tigerflame-vst3-${{ runner.os }}
+          path: build/VST3/
+          if-no-files-found: ignore
+
+      - name: Upload CLAP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tigerflame-clap-${{ runner.os }}
+          path: build/CLAP/
+          if-no-files-found: ignore
