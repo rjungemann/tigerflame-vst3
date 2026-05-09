@@ -25,7 +25,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build
+          sudo apt-get install -y build-essential cmake ninja-build \
+            libgl1-mesa-dev libglu1-mesa-dev libx11-dev libxext-dev
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
@@ -49,11 +50,16 @@ jobs:
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DBUILD_VST3=ON \
             -DBUILD_CLAP=ON \
             -DBUILD_TESTS=ON \
             -DBUILD_STANDALONE=OFF \
             -G Ninja
+        # CMAKE_POLICY_VERSION_MINIMUM=3.5 is required for CMake 4.x compatibility.
+        # The VST3 SDK (v3.7.7) contains subdirectory CMakeLists.txt files that call
+        # cmake_minimum_required() with versions older than 3.5, which CMake 4.x no
+        # longer accepts without this override.
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }} -j
