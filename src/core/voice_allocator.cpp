@@ -32,31 +32,50 @@ VoiceAllocator::~VoiceAllocator() = default;
 void VoiceAllocator::setMode(Mode mode) {
     if (mode == mode_) return;
     
-    // Send all notes off when changing modes
-    allSoundOff();
+    Mode oldMode = mode_;
     
-    mode_ = mode;
-    
-    // Initialize mode-specific state
-    switch (mode_) {
-        case Mode::kMono:
-            reset();
-            break;
-        case Mode::kLayeredMultitimbral:
-            // Ensure layer states match layers
-            layerStates_.resize(layers_.size());
-            break;
-        case Mode::kPolyphonic:
-            setPolyphonyCount(polyphonyCount_);
-            break;
+    // When switching mono → poly: promote the active mono note into the first poly slot
+    if (oldMode == Mode::kMono && mode == Mode::kPolyphonic) {
+        // Save mono state before setPolyphonyCount clears it via reset()
+        MonoVoiceState savedMono = monoState_;
+        // Change mode first so poly state is used going forward
+        mode_ = mode;
+        setPolyphonyCount(polyphonyCount_);
+        // Promote active mono note if there is one
+        if (savedMono.activeNote != -1) {
+            auto& slot = polySlots_[0];
+            slot.midiNote = savedMono.activeNote;
+            slot.velocity = savedMono.velocity;
+            slot.pitchBend = savedMono.pitchBend;
+            slot.noteOnTime = savedMono.noteOnTime;
+            slot.sustain = savedMono.sustain;
+            slot.released = savedMono.released;
+        }
+    } else {
+        // All other transitions: silence everything first
+        allSoundOff();
+        mode_ = mode;
+        switch (mode_) {
+            case Mode::kMono:
+                reset();
+                break;
+            case Mode::kLayeredMultitimbral:
+                layerStates_.resize(layers_.size());
+                break;
+            case Mode::kPolyphonic:
+                setPolyphonyCount(polyphonyCount_);
+                break;
+        }
     }
+    
+    updateActiveVoices();
 }
 
 // Set polyphony count
 void VoiceAllocator::setPolyphonyCount(int voicesPerChip) {
     polyphonyCount_ = std::max(2, std::min(voicesPerChip, 32));
     polySlots_.resize(polyphonyCount_);
-    reset();
+    updateActiveVoices();
 }
 
 // Add layer
@@ -150,18 +169,35 @@ void VoiceAllocator::controlChange(int cc, float value) {
         case kCCSustain:
             // Sustain pedal
             switch (mode_) {
-                case Mode::kMono:
-                    monoState_.sustain = (value > 0.5f);
+                case Mode::kMono: {
+                    bool sustainOn = (value > 0.5f);
+                    monoState_.sustain = sustainOn;
+                    if (!sustainOn && monoState_.released) {
+                        // Release the note that was held by sustain
+                        monoState_.activeNote = -1;
+                        monoState_.released = false;
+                    }
                     break;
+                }
                 case Mode::kLayeredMultitimbral:
                     for (auto& state : layerStates_) {
-                        state.sustain = (value > 0.5f);
+                        bool sustainOn = (value > 0.5f);
+                        state.sustain = sustainOn;
+                        if (!sustainOn && state.released) {
+                            state.activeNote = -1;
+                            state.released = false;
+                        }
                     }
                     break;
                 case Mode::kPolyphonic:
                     for (auto& slot : polySlots_) {
                         if (slot.midiNote != -1) {
-                            slot.sustain = (value > 0.5f);
+                            bool sustainOn = (value > 0.5f);
+                            slot.sustain = sustainOn;
+                            if (!sustainOn && slot.released) {
+                                slot.midiNote = -1;
+                                slot.released = false;
+                            }
                         }
                     }
                     break;
@@ -187,6 +223,7 @@ void VoiceAllocator::controlChange(int cc, float value) {
             }
             break;
     }
+    updateActiveVoices();
 }
 
 // All notes off
@@ -403,6 +440,9 @@ void VoiceAllocator::noteOffMono(int note) {
     if (monoState_.activeNote == note) {
         if (!monoState_.sustain) {
             monoState_.activeNote = -1;
+        } else {
+            // Key released while sustaining — mark for release when sustain lifts
+            monoState_.released = true;
         }
     }
 }
@@ -464,6 +504,9 @@ void VoiceAllocator::noteOffPoly(int note) {
         if (slot.midiNote == note) {
             if (!slot.sustain) {
                 slot.midiNote = -1;
+            } else {
+                // Key released while sustaining — mark for release when sustain lifts
+                slot.released = true;
             }
         }
     }

@@ -37,6 +37,7 @@ struct MonoVoiceState {
     float velocity = 0.0f;      // Current velocity
     int64_t noteOnTime = -1;    // Sample counter at note-on
     bool sustain = false;       // Sustain state
+    bool released = false;      // Note-off received while sustaining
 };
 
 // State for polyphonic mode (per voice slot)
@@ -46,6 +47,7 @@ struct PolyVoiceSlot {
     double pitchBend = 0.0;      // Pitch bend at note-on
     int64_t noteOnTime = -1;     // Sample counter
     bool sustain = false;        // Sustain state
+    bool released = false;       // Note-off received while sustaining
 };
 
 // Layer configuration

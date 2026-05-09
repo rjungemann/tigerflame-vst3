@@ -92,8 +92,8 @@ void MidiTranslator::translateControlChange(int cc, float value) {
         cmd.paramId = mapping.paramId;
         cmd.paramValue = scaledValue;
         
-        // Queue command for immediate dispatch (CC changes should be immediate)
-        dispatchCommand(cmd);
+        // Queue command (CC changes are processed with other queued commands)
+        commandQueue_.push_back(cmd);
     }
 }
 
