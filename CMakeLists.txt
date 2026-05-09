@@ -130,6 +130,11 @@ set(SMTG_ADD_VST3_HOSTING_SAMPLES OFF CACHE BOOL "Disable VST3 hosting samples")
 set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES OFF CACHE BOOL "Disable VST3 hosting examples")
 # Disable utilities (includes moduleinfotool which fails to build on modern compilers)
 set(SMTG_ADD_VST3_UTILITIES OFF CACHE BOOL "Disable VST3 utilities")
+# Disable the VST3 validator post-build run: SMTG_RUN_VST_VALIDATOR causes the SDK to build
+# and execute validator.exe after the plugin is compiled. Under MinGW on Windows the
+# validator.exe crashes with 0xc0000139 (missing DLL entry point). Even on other platforms
+# the validator requires the plugin to be fully installed, so disable it in CI.
+set(SMTG_RUN_VST_VALIDATOR OFF CACHE BOOL "Disable running VST3 validator after build")
 
 FetchContent_MakeAvailable(vst3sdk)
 
@@ -363,16 +368,10 @@ if(APPLE)
         OUTPUT_NAME "TigerFlame"
     )
     
-    # Copy resources
+    # Ensure Resources directory exists at post-build time
     add_custom_command(TARGET tigerflame-vst3 POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory ${VST3_BUNDLE_CONTENT_DIR}/Resources
-        COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist
-            ${VST3_BUNDLE_CONTENT_DIR}/
-        COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PkgInfo
-            ${VST3_BUNDLE_CONTENT_DIR}/
-        COMMENT "Creating VST3 bundle structure for macOS"
+        COMMENT "Creating VST3 bundle Resources directory for macOS"
     )
 elseif(WIN32)
     set_target_properties(tigerflame-vst3 PROPERTIES
