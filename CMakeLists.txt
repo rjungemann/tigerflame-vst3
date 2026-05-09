@@ -473,7 +473,18 @@ if(BUILD_TESTS)
             tigerflame-core
             Catch2::Catch2WithMain
     )
-    
+
+    # On MinGW, statically link the GCC and C++ runtimes into the test executable.
+    # This avoids STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) at test runtime caused by
+    # the Windows DLL loader finding an older libstdc++/libgcc (e.g. from Chocolatey's
+    # MinGW) before MSYS2's versions in PATH.
+    if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_link_options(tigerflame-tests PRIVATE
+            -static-libgcc
+            -static-libstdc++
+        )
+    endif()
+
     # Enable testing
     enable_testing()
     add_test(NAME tigerflame-tests COMMAND tigerflame-tests)
