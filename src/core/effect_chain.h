@@ -14,7 +14,7 @@ namespace TigerFlame {
 
 // Effect slot configuration
 struct EffectSlotConfig {
-    EffectType type = EffectType::kEffectNone;
+    EffectType type = EffectType::kNone;
     bool enabled = true;
     bool bypass = false;
     float wetMix = 0.5f;       // 0.0 = dry only, 1.0 = wet only

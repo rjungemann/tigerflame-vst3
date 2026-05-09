@@ -116,6 +116,9 @@ FetchContent_Declare(
 
 # Disable VSTGUI to avoid compilation issues with modern C++
 set(SMTG_ADD_VSTGUI OFF CACHE BOOL "Disable VSTGUI")
+# Disable hosting samples (includes validator which has compilation issues on some toolchains)
+set(SMTG_ADD_VST3_HOSTING_SAMPLES OFF CACHE BOOL "Disable VST3 hosting samples")
+set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES OFF CACHE BOOL "Disable VST3 hosting examples")
 
 FetchContent_MakeAvailable(vst3sdk)
 
@@ -264,6 +267,7 @@ set(UI_SOURCES
 
 # Core library
 add_library(tigerflame-core STATIC ${CORE_SOURCES})
+set_target_properties(tigerflame-core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(tigerflame-core
     PUBLIC

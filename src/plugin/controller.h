@@ -5,10 +5,11 @@
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "public.sdk/source/vst/vstparameters.h"
+#include "pluginterfaces/vst/ivsteditcontroller.h"
 
 #include "ids.h"
 #include "version.h"
-#include "param_ids.h"
+#include "core/parameter_model.h"
 
 namespace Steinberg {
     namespace Vst {
@@ -19,20 +20,21 @@ namespace Steinberg {
 
 namespace TigerFlame {
 
-// Parameter descriptor for parameter registration
-struct ParameterDescriptor {
-    ParamId id;
-    const char* title;
-    const char* shortTitle;
-    const char* units;
-    double defaultNormalizedValue;
-    Steinberg::int32 stepCount;
-    Steinberg::int32 flags;
-};
-
 // Edit Controller class
-class Controller : public Steinberg::Vst::EditControllerEx1 {
+class Controller : public Steinberg::Vst::EditControllerEx1,
+                   public Steinberg::Vst::IMidiMapping {
 public:
+    // Parameter descriptor for internal use (separate from core ParameterDescriptor)
+    struct PluginParamDescriptor {
+        ParamId id;
+        const char* title;
+        const char* shortTitle;
+        const char* units;
+        double defaultNormalizedValue;
+        Steinberg::int32 stepCount;
+        Steinberg::int32 flags;
+    };
+
     // Constructor
     Controller();
     
@@ -57,29 +59,17 @@ public:
         Steinberg::Vst::TChar* string,
         Steinberg::Vst::ParamValue& valueNormalized) override;
     
-    // Parameter info
-    Steinberg::tresult PLUGIN_API getParamInfo(
-        Steinberg::int32 index,
-        Steinberg::Vst::ParameterInfo& info) override;
-    
     // Unit info
     Steinberg::tresult PLUGIN_API getUnitInfo(
         Steinberg::int32 unitIndex,
         Steinberg::Vst::UnitInfo& info) override;
     
-    // MIDI controller assignment
+    // MIDI controller assignment (IMidiMapping)
     Steinberg::tresult PLUGIN_API getMidiControllerAssignment(
         Steinberg::int32 busIndex,
         Steinberg::int16 channel,
         Steinberg::Vst::CtrlNumber midiControllerNumber,
         Steinberg::Vst::ParamID& id) override;
-    
-    // Program management
-    Steinberg::int32 PLUGIN_API getProgramIndex() override;
-    void PLUGIN_API setProgramIndex(Steinberg::int32 index) override;
-    Steinberg::tresult PLUGIN_API getProgramNameIndexed(
-        Steinberg::int32 index,
-        Steinberg::Vst::String128 name) override;
     
     // View creation
     Steinberg::IPlugView* PLUGIN_API createView(
@@ -89,37 +79,28 @@ public:
     Steinberg::tresult PLUGIN_API setState(
         Steinberg::IBStream* stream) override;
     Steinberg::tresult PLUGIN_API getState(
-        Steinberg::IBStream* stream) const override;
+        Steinberg::IBStream* stream) override;
     
     // Static factory method
     static Steinberg::FUnknown* createInstance(void* /*context*/) {
         return static_cast<Steinberg::Vst::IEditController*>(new Controller());
     }
-    
-    // Get parameter count
-    Steinberg::int32 getParameterCount() const override { return kParamCount; }
-    
-    // Get parameter object
-    Steinberg::Vst::Parameter* getParameterObject(Steinberg::int32 index) override;
-    
-    // Get parameter ID from index
-    ParamId getParameterId(Steinberg::int32 index) const;
-    
-    // Get parameter index from ID
-    Steinberg::int32 getParameterIndex(ParamId id) const;
+
+    // Expose IMidiMapping through queryInterface
+    OBJ_METHODS(Controller, EditControllerEx1)
+    DEFINE_INTERFACES
+        DEF_INTERFACE(IMidiMapping)
+    END_DEFINE_INTERFACES(EditControllerEx1)
+    REFCOUNT_METHODS(EditControllerEx1)
 
 private:
     // Parameter descriptors
-    static const ParameterDescriptor kParameterDescriptors[];
+    static const PluginParamDescriptor kParameterDescriptors[];
+    static constexpr Steinberg::int32 kParamCount =
+        static_cast<Steinberg::int32>(ParamId::kParamCount);
     
     // Initialize parameters
     void initializeParameters();
-    
-    // Parameter storage
-    Steinberg::Vst::Parameter** parameters_ = nullptr;
-    
-    // Parameter count
-    static constexpr Steinberg::int32 kParamCount = static_cast<Steinberg::int32>(ParamId::kParamCount);
     
     // Disallow copying
     Controller(const Controller&) = delete;

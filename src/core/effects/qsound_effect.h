@@ -25,7 +25,7 @@ public:
     void process(float* left, float* right) override;
     void processBlock(float* left, float* right, int numSamples) override;
     
-    EffectType getType() const override { return EffectType::kEffectQSound; }
+    EffectType getType() const override { return EffectType::kQSound; }
     
     void setParameter(int paramId, float value) override;
     float getParameter(int paramId) const override;
