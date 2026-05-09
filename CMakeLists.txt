@@ -332,6 +332,7 @@ target_include_directories(tigerflame-vst3
 target_link_libraries(tigerflame-vst3
     PRIVATE
         tigerflame-core
+        sdk          # VST3 SDK: AudioEffect, EditController, ComponentBase, CPluginFactory
         ${PLATFORM_LIBS}
 )
 

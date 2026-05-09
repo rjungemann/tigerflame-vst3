@@ -48,10 +48,6 @@ public:
     Steinberg::tresult PLUGIN_API process(
         Steinberg::Vst::ProcessData& data) override;
     
-    // IComponent interface
-    Steinberg::tresult PLUGIN_API getControllerClassId(
-        Steinberg::TUID classId) override;
-    
     // State persistence
     Steinberg::tresult PLUGIN_API setState(
         Steinberg::IBStream* stream) override;
