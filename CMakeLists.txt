@@ -119,8 +119,32 @@ set(SMTG_ADD_VSTGUI OFF CACHE BOOL "Disable VSTGUI")
 # Disable hosting samples (includes validator which has compilation issues on some toolchains)
 set(SMTG_ADD_VST3_HOSTING_SAMPLES OFF CACHE BOOL "Disable VST3 hosting samples")
 set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES OFF CACHE BOOL "Disable VST3 hosting examples")
+# Disable utilities (includes moduleinfotool which fails to build on modern compilers)
+set(SMTG_ADD_VST3_UTILITIES OFF CACHE BOOL "Disable VST3 utilities")
 
 FetchContent_MakeAvailable(vst3sdk)
+
+# Patch missing standard library includes in VST3 SDK files that fail to build on
+# modern C++ standard libraries (GCC 13+, Clang 16+). These files are missing
+# <cstdint> for uint32_t and <limits> for std::numeric_limits.
+set(_vst3_moduleinfo_h "${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/moduleinfo/moduleinfo.h")
+if(EXISTS "${_vst3_moduleinfo_h}")
+    file(READ "${_vst3_moduleinfo_h}" _content)
+    if(NOT _content MATCHES "include <cstdint>")
+        string(REPLACE "#include <vector>" "#include <vector>\n#include <cstdint>" _content "${_content}")
+        file(WRITE "${_vst3_moduleinfo_h}" "${_content}")
+        message(STATUS "Patched ${_vst3_moduleinfo_h} with missing <cstdint>")
+    endif()
+endif()
+set(_vst3_parser_cpp "${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/moduleinfo/moduleinfoparser.cpp")
+if(EXISTS "${_vst3_parser_cpp}")
+    file(READ "${_vst3_parser_cpp}" _content)
+    if(NOT _content MATCHES "include <limits>")
+        string(REPLACE "#include <stdexcept>" "#include <cstdint>\n#include <limits>\n#include <stdexcept>" _content "${_content}")
+        file(WRITE "${_vst3_parser_cpp}" "${_content}")
+        message(STATUS "Patched ${_vst3_parser_cpp} with missing <cstdint> and <limits>")
+    endif()
+endif()
 
 include_directories(${vst3sdk_SOURCE_DIR})
 
