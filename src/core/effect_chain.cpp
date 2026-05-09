@@ -12,8 +12,6 @@
 
 namespace TigerFlame {
 
-using Core::EffectType;
-
 // Effect type names
 static const char* kEffectTypeNames[] = {
     "None",
@@ -389,14 +387,14 @@ const char* EffectChain::getEffectParameterName(EffectType type, int paramId) {
                 case 3: return "Stereo Width";
                 default: return "Unknown";
             }
-        case EffectType::kReverb:
+        case EffectType::kEffectReverb:
             switch (paramId) {
                 case 0: return "Room Size";
                 case 1: return "Damping";
                 case 2: return "Pre-Delay";
                 default: return "Unknown";
             }
-        case EffectType::kDelay:
+        case EffectType::kEffectDelay:
             switch (paramId) {
                 case 0: return "Delay Left";
                 case 1: return "Delay Right";
@@ -406,14 +404,14 @@ const char* EffectChain::getEffectParameterName(EffectType type, int paramId) {
                 case 5: return "Tempo Sync";
                 default: return "Unknown";
             }
-        case EffectType::kDistortion:
+        case EffectType::kEffectDistortion:
             switch (paramId) {
                 case 0: return "Drive";
                 case 1: return "Tone";
                 case 2: return "Wet/Dry";
                 default: return "Unknown";
             }
-        case EffectType::kEQ:
+        case EffectType::kEffectEQ:
             switch (paramId) {
                 case 0: return "Low Gain";
                 case 1: return "Mid Gain";
