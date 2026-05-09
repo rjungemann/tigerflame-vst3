@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -75,13 +76,13 @@ enum class ChipType : int32_t {
 
 // Effect type enum
 enum class EffectType : int32_t {
-    kEffectNone = 0,
-    kEffectQSound,
-    kEffectReverb,
-    kEffectDelay,
-    kEffectDistortion,
-    kEffectEQ,
-    kEffectCount
+    kNone = 0,
+    kQSound,
+    kReverb,
+    kDelay,
+    kDistortion,
+    kEQ,
+    kCount
 };
 
 // Parameter descriptor structure
@@ -142,12 +143,12 @@ inline double chipTypeToParam(ChipType type) {
 
 // Effect Type conversion
 inline EffectType paramToEffectType(double normalizedValue) {
-    int type = static_cast<int>(normalizedValue * (static_cast<int>(EffectType::kEffectCount) - 1));
-    return static_cast<EffectType>(std::max(0, std::min(type, static_cast<int>(EffectType::kEffectCount) - 1)));
+    int type = static_cast<int>(normalizedValue * (static_cast<int>(EffectType::kCount) - 1));
+    return static_cast<EffectType>(std::max(0, std::min(type, static_cast<int>(EffectType::kCount) - 1)));
 }
 
 inline double effectTypeToParam(EffectType type) {
-    int count = static_cast<int>(EffectType::kEffectCount) - 1;
+    int count = static_cast<int>(EffectType::kCount) - 1;
     return static_cast<double>(type) / count;
 }
 

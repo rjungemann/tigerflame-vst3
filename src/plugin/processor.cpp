@@ -4,6 +4,8 @@
 
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/base/fstrdefs.h"
+#include "pluginterfaces/base/ibstream.h"
 
 #include "core/chip_engine.h"
 #include "core/voice_allocator.h"
@@ -11,22 +13,56 @@
 #include "core/state.h"
 #include "core/plugin_state.h"
 #include "core/effect_chain.h"
+#include "core/stream.h"
 
 #include <cstring>
 #include <algorithm>
 
-namespace Steinberg {
-    namespace Vst {
-        using namespace Steinberg;
-    }
-}
+using namespace Steinberg;
+using namespace Steinberg::Vst;
 
 namespace TigerFlame {
+
+// Adapter: wraps Steinberg::IBStream as TigerFlame::IStream
+class IBStreamAdapter : public IStream {
+public:
+    explicit IBStreamAdapter(Steinberg::IBStream* s) : stream_(s) {}
+
+    StreamResult write(const void* buffer, size_t size) override {
+        int32 written = 0;
+        return (stream_->write(const_cast<void*>(buffer),
+                               static_cast<int32>(size), &written) == Steinberg::kResultOk)
+            ? StreamResult::kOk : StreamResult::kError;
+    }
+
+    StreamResult read(void* buffer, size_t size) override {
+        int32 bytesRead = 0;
+        return (stream_->read(buffer, static_cast<int32>(size), &bytesRead) == Steinberg::kResultOk)
+            ? StreamResult::kOk : StreamResult::kError;
+    }
+
+    StreamResult seek(int64_t position) override {
+        int64 result = 0;
+        return (stream_->seek(position, Steinberg::IBStream::kIBSeekSet, &result) == Steinberg::kResultOk)
+            ? StreamResult::kOk : StreamResult::kError;
+    }
+
+    int64_t tell() const override {
+        int64 pos = 0;
+        stream_->tell(&pos);
+        return pos;
+    }
+
+    int64_t getSize() const override { return -1; }
+
+private:
+    Steinberg::IBStream* stream_;
+};
 
 // Constructor
 Processor::Processor() : AudioEffect() {
     // Initialize with default values
-    setControllerClassId(TigerFlameControllerUID);
+    setControllerClass(TigerFlameControllerUID);
     
     // We're an instrument (no audio input, stereo audio output)
     // Bus configuration will be set in setBusArrangements
@@ -38,7 +74,7 @@ Processor::~Processor() {
 }
 
 // Initialize
-Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context) {
+tresult PLUGIN_API Processor::initialize(FUnknown* context) {
     tresult result = AudioEffect::initialize(context);
     if (result != kResultOk) {
         return result;
@@ -51,16 +87,16 @@ Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context
 }
 
 // Terminate
-Steinberg::tresult PLUGIN_API Processor::terminate() {
+tresult PLUGIN_API Processor::terminate() {
     cleanupCore();
     return AudioEffect::terminate();
 }
 
 // Set bus arrangements
-Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
-    Steinberg::Vst::SpeakerArrangement* inputs,
+tresult PLUGIN_API Processor::setBusArrangements(
+    SpeakerArrangement* inputs,
     int32 numIns,
-    Steinberg::Vst::SpeakerArrangement* outputs,
+    SpeakerArrangement* outputs,
     int32 numOuts) {
     
     // We're an instrument plugin: 0 audio inputs, 1 stereo output
@@ -70,7 +106,7 @@ Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
     
     // Check output arrangement is stereo
     if (outputs && numOuts > 0) {
-        if (outputs[0] != Steinberg::Vst::kSpeakerArrStereo) {
+        if (outputs[0] != SpeakerArr::kStereo) {
             return kResultFalse;
         }
     }
@@ -79,8 +115,8 @@ Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
 }
 
 // Setup processing
-Steinberg::tresult PLUGIN_API Processor::setupProcessing(
-    Steinberg::Vst::ProcessSetup& setup) {
+tresult PLUGIN_API Processor::setupProcessing(
+    ProcessSetup& setup) {
     
     sampleRate_ = setup.sampleRate;
     blockSize_ = setup.maxSamplesPerBlock;
@@ -104,9 +140,9 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 }
 
 // Set processing state
-Steinberg::tresult PLUGIN_API Processor::setProcessing(bool state) {
+tresult PLUGIN_API Processor::setProcessing(TBool state) {
     if (state != processingActive_) {
-        processingActive_ = state;
+        processingActive_ = state != 0;
         if (state) {
             // Processing starting
             if (chipEngine_) {
@@ -123,27 +159,27 @@ Steinberg::tresult PLUGIN_API Processor::setProcessing(bool state) {
 }
 
 // Can process sample size
-Steinberg::tresult PLUGIN_API Processor::canProcessSampleSize(
+tresult PLUGIN_API Processor::canProcessSampleSize(
     int32 symbolicSampleSize) {
     
     // Support 32-bit and 64-bit float
-    if (symbolicSampleSize == Steinberg::Vst::kSample32 ||
-        symbolicSampleSize == Steinberg::Vst::kSample64) {
+    if (symbolicSampleSize == kSample32 ||
+        symbolicSampleSize == kSample64) {
         return kResultTrue;
     }
     return kResultFalse;
 }
 
 // Process
-Steinberg::tresult PLUGIN_API Processor::process(
-    Steinberg::Vst::ProcessData& data) {
+tresult PLUGIN_API Processor::process(
+    ProcessData& data) {
     
     if (!processingActive_) {
         return kResultOk;
     }
     
     // Check if we need to process
-    if (data.numInputs == 0 || data.numOutputs == 0) {
+    if (data.numOutputs == 0) {
         return kResultOk;
     }
     
@@ -156,7 +192,7 @@ Steinberg::tresult PLUGIN_API Processor::process(
     if (data.inputParameterChanges) {
         int32 numParams = data.inputParameterChanges->getParameterCount();
         for (int32 i = 0; i < numParams; ++i) {
-            Steinberg::Vst::IParameterValueQueue* queue = 
+            IParamValueQueue* queue = 
                 data.inputParameterChanges->getParameterData(i);
             if (queue) {
                 processParameterChanges(queue, data.numSamples);
@@ -165,10 +201,10 @@ Steinberg::tresult PLUGIN_API Processor::process(
     }
     
     // Process audio based on sample type
-    if (data.symbolicSampleSize == Steinberg::Vst::kSample32) {
-        processAudio<float>(data, data.inputs, data.outputs, data.numSamples);
-    } else if (data.symbolicSampleSize == Steinberg::Vst::kSample64) {
-        processAudio<double>(data, data.inputs, data.outputs, data.numSamples);
+    if (data.symbolicSampleSize == kSample32) {
+        processAudio<float>(data, data.outputs[0].channelBuffers32, data.numSamples);
+    } else if (data.symbolicSampleSize == kSample64) {
+        processAudio<double>(data, data.outputs[0].channelBuffers64, data.numSamples);
     }
     
     elapsedSamples_ += data.numSamples;
@@ -179,14 +215,13 @@ Steinberg::tresult PLUGIN_API Processor::process(
 // Process audio (template implementation)
 template<typename SampleType>
 void Processor::processAudio(
-    Steinberg::Vst::ProcessData& data,
-    SampleType* const* inputs,
+    ProcessData& data,
     SampleType* const* outputs,
     int32 numSamples) {
     
     // Clear output buffers
-    SampleType* outL = outputs[0];
-    SampleType* outR = outputs[1];
+    SampleType* outL = (outputs && data.outputs[0].numChannels > 0) ? outputs[0] : nullptr;
+    SampleType* outR = (outputs && data.outputs[0].numChannels > 1) ? outputs[1] : nullptr;
     
     if (outL) {
         std::memset(outL, 0, numSamples * sizeof(SampleType));
@@ -227,14 +262,14 @@ void Processor::processAudio(
 
 // Process MIDI events
 void Processor::processMidiEvents(
-    Steinberg::Vst::IEventList* events,
+    IEventList* events,
     int32 numSamples) {
     
     if (!midiTranslator_ || !voiceAllocator_) {
         return;
     }
     
-    Steinberg::Vst::Event e;
+    Event e;
     int32 eventCount = events->getEventCount();
     
     for (int32 i = 0; i < eventCount; ++i) {
@@ -242,55 +277,24 @@ void Processor::processMidiEvents(
             continue;
         }
         
-        // Only process MIDI events
-        if (e.type != Steinberg::Vst::Event::kNoteOnEvent &&
-            e.type != Steinberg::Vst::Event::kNoteOffEvent &&
-            e.type != Steinberg::Vst::Event::kPolyPressureEvent &&
-            e.type != Steinberg::Vst::Event::kNoteExpressionCountEvent &&
-            e.type != Steinberg::Vst::Event::kNoteExpressionValueEvent &&
-            e.type != Steinberg::Vst::Event::kPitchBendEvent &&
-            e.type != Steinberg::Vst::Event::kDataEvent) {
-            continue;
-        }
-        
         // Note On
-        if (e.type == Steinberg::Vst::Event::kNoteOnEvent) {
-            Steinberg::Vst::NoteOnEvent* noteOn = static_cast<Steinberg::Vst::NoteOnEvent*>(e.data);
-            if (noteOn && noteOn->velocity > 0.0f) {
-                int note = noteOn->pitch;
-                float velocity = noteOn->velocity;
-                voiceAllocator_->noteOn(note, velocity);
+        if (e.type == Event::kNoteOnEvent) {
+            if (e.noteOn.velocity > 0.0f) {
+                voiceAllocator_->noteOn(e.noteOn.pitch, e.noteOn.velocity);
             }
         }
         
         // Note Off
-        else if (e.type == Steinberg::Vst::Event::kNoteOffEvent) {
-            Steinberg::Vst::NoteOffEvent* noteOff = static_cast<Steinberg::Vst::NoteOffEvent*>(e.data);
-            if (noteOff) {
-                int note = noteOff->pitch;
-                float velocity = noteOff->velocity;
-                voiceAllocator_->noteOff(note);
-            }
-        }
-        
-        // Pitch Bend
-        else if (e.type == Steinberg::Vst::Event::kPitchBendEvent) {
-            Steinberg::Vst::PitchBendEvent* pitchBend = static_cast<Steinberg::Vst::PitchBendEvent*>(e.data);
-            if (pitchBend) {
-                // Convert pitch bend value to semitones
-                // VST3 pitch bend: -1.0 to +1.0 = -2 to +2 semitones typically
-                double semitones = pitchBend->pitch * pluginState_.getPitchBendRange();
-                voiceAllocator_->pitchBend(semitones);
-            }
+        else if (e.type == Event::kNoteOffEvent) {
+            voiceAllocator_->noteOff(e.noteOff.pitch);
         }
         
         // Data Event (MIDI CC, etc.)
-        else if (e.type == Steinberg::Vst::Event::kDataEvent) {
-            Steinberg::Vst::DataEvent* dataEvent = static_cast<Steinberg::Vst::DataEvent*>(e.data);
-            if (dataEvent && dataEvent->size == 3 && dataEvent->data[0] == 0xB0) {
+        else if (e.type == Event::kDataEvent) {
+            if (e.data.size == 3 && e.data.bytes[0] == 0xB0) {
                 // MIDI CC event
-                int cc = dataEvent->data[1] & 0x7F;
-                int value = dataEvent->data[2] & 0x7F;
+                int cc = e.data.bytes[1] & 0x7F;
+                int value = e.data.bytes[2] & 0x7F;
                 float normalizedValue = value / 127.0f;
                 voiceAllocator_->controlChange(cc, normalizedValue);
             }
@@ -300,10 +304,10 @@ void Processor::processMidiEvents(
 
 // Process parameter changes
 void Processor::processParameterChanges(
-    Steinberg::Vst::IParameterValueQueue* queue,
+    IParamValueQueue* queue,
     int32 numSamples) {
     
-    Steinberg::Vst::ParamValue value;
+    ParamValue value;
     int32 sampleOffset;
     int32 pointCount = queue->getPointCount();
     
@@ -316,67 +320,55 @@ void Processor::processParameterChanges(
     }
 }
 
-// Get info
-Steinberg::tresult PLUGIN_API Processor::getInfo(
-    Steinberg::PClassInfo& info) const {
-    info.cardinality = Steinberg::PClassInfo::kManyInstances;
-    info.className = "TigerFlame Processor";
-    info.classID = TigerFlameProcessorUID;
-    return kResultOk;
-}
-
-// Get controller class ID
-Steinberg::tresult PLUGIN_API Processor::getControllerClassId(
-    Steinberg::TUID& classId) const {
-    classId = TigerFlameControllerUID;
-    return kResultOk;
-}
-
 // Set state
-Steinberg::tresult PLUGIN_API Processor::setState(
-    Steinberg::IBStream* stream) {
+tresult PLUGIN_API Processor::setState(
+    IBStream* stream) {
     
     if (!stream) {
         return kResultFalse;
     }
     
-    // Save plugin state
-    pluginState_.restoreFromStream(stream);
+    IBStreamAdapter adapter(stream);
+    
+    // Restore plugin state
+    pluginState_.restoreFromStream(&adapter);
     
     // Update core components
     if (chipEngine_) {
-        chipEngine_->restoreState(stream);
+        chipEngine_->restoreState(&adapter);
     }
     if (voiceAllocator_) {
-        voiceAllocator_->restoreState(stream);
+        voiceAllocator_->restoreState(&adapter);
     }
     if (effectChain_) {
-        effectChain_->restoreState(stream);
+        effectChain_->restoreState(&adapter);
     }
     
     return kResultOk;
 }
 
 // Get state
-Steinberg::tresult PLUGIN_API Processor::getState(
-    Steinberg::IBStream* stream) const {
+tresult PLUGIN_API Processor::getState(
+    IBStream* stream) {
     
     if (!stream) {
         return kResultFalse;
     }
     
+    IBStreamAdapter adapter(stream);
+    
     // Save plugin state
-    pluginState_.saveToStream(stream);
+    pluginState_.saveToStream(&adapter);
     
     // Save core components
     if (chipEngine_) {
-        chipEngine_->saveState(stream);
+        chipEngine_->saveState(&adapter);
     }
     if (voiceAllocator_) {
-        voiceAllocator_->saveState(stream);
+        voiceAllocator_->saveState(&adapter);
     }
     if (effectChain_) {
-        effectChain_->saveState(stream);
+        effectChain_->saveState(&adapter);
     }
     
     return kResultOk;

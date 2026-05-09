@@ -14,7 +14,7 @@ namespace TigerFlame {
 
 // Effect slot configuration
 struct EffectSlotConfig {
-    EffectType type = EffectType::kEffectNone;
+    EffectType type = EffectType::kNone;
     bool enabled = true;
     bool bypass = false;
     float wetMix = 0.5f;       // 0.0 = dry only, 1.0 = wet only
@@ -127,7 +127,13 @@ public:
     int addEffect(EffectType type, int slotIndex = -1);
     bool removeEffect(int slotIndex);
     void moveEffect(int fromIndex, int toIndex);
-    int getEffectCount() const { return static_cast<int>(slots_.size()); }
+    int getEffectCount() const {
+        int count = 0;
+        for (const auto& slot : slots_) {
+            if (slot.type != EffectType::kNone) ++count;
+        }
+        return count;
+    }
     int getMaxSlots() const { return kMaxSlots; }
     
     // Effect configuration

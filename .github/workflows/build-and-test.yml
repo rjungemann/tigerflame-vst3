@@ -25,7 +25,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build
+          sudo apt-get install -y build-essential cmake ninja-build \
+            libgl1-mesa-dev libglu1-mesa-dev libx11-dev libxext-dev
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
@@ -45,20 +46,31 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-cmake
 
-      - name: Configure CMake (VST3 + CLAP)
+      - name: Configure CMake (VST3 + tests)
+        # shell: bash ensures backslash line-continuation works on Windows (PowerShell
+        # does not support it). The msys2/setup-msys2 action prepends MinGW bin to PATH,
+        # so the MinGW cmake/ninja are found even from Git Bash on Windows.
+        # CMAKE_POLICY_VERSION_MINIMUM=3.5 is required for CMake 4.x compatibility with
+        # the VST3 SDK (v3.7.7), whose subdirectory CMakeLists.txt files call
+        # cmake_minimum_required() with versions older than 3.5.
+        # BUILD_CLAP is OFF because src/clap/clap_entry.cpp is pending Phase 2.
+        shell: bash
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DBUILD_VST3=ON \
-            -DBUILD_CLAP=ON \
+            -DBUILD_CLAP=OFF \
             -DBUILD_TESTS=ON \
             -DBUILD_STANDALONE=OFF \
             -G Ninja
 
       - name: Build
+        shell: bash
         run: cmake --build build --config ${{ matrix.build_type }} -j
 
       - name: Run tests
+        shell: bash
         run: |
           cd build
           ctest --output-on-failure -j

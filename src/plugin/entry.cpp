@@ -3,26 +3,41 @@
 
 #include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivsteditcontroller.h"
 #include "public.sdk/source/main/pluginfactory.h"
 
 #include "ids.h"
 #include "processor.h"
 #include "controller.h"
 
+using namespace Steinberg;
+using namespace Steinberg::Vst;
+
 // Define the plugin factory
 BEGIN_FACTORY_DEF("TigerFlame", "https://github.com/rjungemann/tigerflame-vst3", "info@tigerflame.com")
 
-// Register plugin classes
-DEF_CLASS2(INLINE_UID_FROM_FUID(TigerFlameProcessorUID),
-    TigerFlame::Processor,
+// Register processor (AudioEffect)
+DEF_CLASS2(INLINE_UID(0xA1B2C3D4, 0xE5F67890, 0x12345678, 0x90ABCDEF),
+    PClassInfo::kManyInstances,
+    kVstAudioEffectClass,
+    "TigerFlame",
+    kDistributable,
+    "Instrument|Synth",
+    "1.0.0",
+    kVstVersionString,
     TigerFlame::Processor::createInstance)
 
-DEF_CLASS2(INLINE_UID_FROM_FUID(TigerFlameControllerUID),
-    TigerFlame::Controller,
+// Register controller (EditController)
+DEF_CLASS2(INLINE_UID(0xFEDCBA09, 0x87654321, 0xFEDCBA98, 0x76543210),
+    PClassInfo::kManyInstances,
+    kVstComponentControllerClass,
+    "TigerFlame Controller",
+    0,
+    "",
+    "1.0.0",
+    kVstVersionString,
     TigerFlame::Controller::createInstance)
-
-// Plugin version
-DECLARE_UID(TigerFlameVersionUID, 0xA1B2C3D4, 0xE5F67890, 0x12345678, 0x90ABCDEF0)
 
 END_FACTORY
 
@@ -33,15 +48,4 @@ bool InitModule() {
 
 bool DeinitModule() {
     return true;
-}
-
-// Export factory for VST3 host
-// On macOS: _Z16GetPluginFactoryv (for C++ mangled name)
-// On Windows: ?GetPluginFactory@@YAPEAVIAFactory@@XZ
-
-extern "C" {
-    __attribute__((visibility("default"))) 
-    Steinberg::IPluginFactory* GetPluginFactory() {
-        return TigerFlameFactory::instance();
-    }
 }

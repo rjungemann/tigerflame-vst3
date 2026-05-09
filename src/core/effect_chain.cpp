@@ -12,8 +12,6 @@
 
 namespace TigerFlame {
 
-using Core::EffectType;
-
 // Effect type names
 static const char* kEffectTypeNames[] = {
     "None",
@@ -137,7 +135,7 @@ EffectType EffectChain::getEffectType(int slotIndex) const {
     if (slotIndex >= 0 && slotIndex < kMaxSlots) {
         return slots_[slotIndex].type;
     }
-    return EffectType::kEffectNone;
+    return EffectType::kNone;
 }
 
 // Set effect enabled
@@ -196,7 +194,7 @@ void EffectChain::setEffectParameter(int slotIndex, int paramId, float value) {
         // Also update the slot config for persistence
         EffectSlotConfig& config = slots_[slotIndex];
         switch (config.type) {
-            case EffectType::kEffectQSound:
+            case EffectType::kQSound:
                 switch (paramId) {
                     case 0: config.qsoundDelayTime = value; break;
                     case 1: config.qsoundFeedback = value; break;
@@ -204,14 +202,14 @@ void EffectChain::setEffectParameter(int slotIndex, int paramId, float value) {
                     case 3: config.qsoundStereoWidth = value; break;
                 }
                 break;
-            case EffectType::kEffectReverb:
+            case EffectType::kReverb:
                 switch (paramId) {
                     case 0: config.reverbRoomSize = value; break;
                     case 1: config.reverbDamping = value; break;
                     case 2: config.reverbPreDelay = value; break;
                 }
                 break;
-            case EffectType::kEffectDelay:
+            case EffectType::kDelay:
                 switch (paramId) {
                     case 0: config.delayTimeLeft = value; break;
                     case 1: config.delayTimeRight = value; break;
@@ -345,7 +343,7 @@ void EffectChain::restoreState(IStream* stream) {
     for (int i = 0; i < kMaxSlots; ++i) {
         if (stream->read(&slots_[i], sizeof(slots_[i])) != StreamResult::kOk) return;
         
-        if (slots_[i].type != EffectType::kEffectNone) {
+        if (slots_[i].type != EffectType::kNone) {
             EffectBase* effect = createEffect(slots_[i].type);
             if (effect) {
                 effect->setSampleRate(sampleRate_);
@@ -368,12 +366,12 @@ const char* EffectChain::getEffectTypeName(EffectType type) {
 // Get effect parameter count
 int EffectChain::getEffectParameterCount(EffectType type) {
     switch (type) {
-        case EffectType::kEffectNone: return 0;
-        case EffectType::kEffectQSound: return 4;
-        case EffectType::kEffectReverb: return 3;
-        case EffectType::kEffectDelay: return 6;
-        case EffectType::kEffectDistortion: return 3;
-        case EffectType::kEffectEQ: return 6;
+        case EffectType::kNone: return 0;
+        case EffectType::kQSound: return 4;
+        case EffectType::kReverb: return 3;
+        case EffectType::kDelay: return 6;
+        case EffectType::kDistortion: return 3;
+        case EffectType::kEQ: return 6;
         default: return 0;
     }
 }
@@ -381,7 +379,7 @@ int EffectChain::getEffectParameterCount(EffectType type) {
 // Get effect parameter name
 const char* EffectChain::getEffectParameterName(EffectType type, int paramId) {
     switch (type) {
-        case EffectType::kEffectQSound:
+        case EffectType::kQSound:
             switch (paramId) {
                 case 0: return "Delay Time";
                 case 1: return "Feedback";
@@ -431,15 +429,15 @@ const char* EffectChain::getEffectParameterName(EffectType type, int paramId) {
 // Create an effect instance
 EffectBase* EffectChain::createEffect(EffectType type) {
     switch (type) {
-        case EffectType::kEffectQSound:
+        case EffectType::kQSound:
             return new QSoundEffect();
-        case EffectType::kEffectReverb:
+        case EffectType::kReverb:
             return new ReverbEffect();
-        case EffectType::kEffectDelay:
+        case EffectType::kDelay:
             return new DelayEffect();
-        case EffectType::kEffectDistortion:
+        case EffectType::kDistortion:
             return new DistortionEffect();
-        case EffectType::kEffectEQ:
+        case EffectType::kEQ:
             return new EQEffect();
         default:
             return nullptr;

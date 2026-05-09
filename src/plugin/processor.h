@@ -19,12 +19,6 @@ namespace TigerFlame {
     class EffectChain;
 }
 
-namespace Steinberg {
-    namespace Vst {
-        class AudioEffect;
-    }
-}
-
 namespace TigerFlame {
 
 // Audio processor class
@@ -54,10 +48,6 @@ public:
     Steinberg::tresult PLUGIN_API process(
         Steinberg::Vst::ProcessData& data) override;
     
-    // IComponent interface
-    Steinberg::tresult PLUGIN_API getControllerClassId(
-        Steinberg::TUID classId) override;
-    
     // State persistence
     Steinberg::tresult PLUGIN_API setState(
         Steinberg::IBStream* stream) override;
@@ -66,14 +56,13 @@ public:
     
     // Static factory method
     static Steinberg::FUnknown* createInstance(void* /*context*/) {
-        return new Processor();
+        return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
     }
     
     // Process audio (template for float/double)
     template<typename SampleType>
     void processAudio(
         Steinberg::Vst::ProcessData& data,
-        SampleType* const* inputs,
         SampleType* const* outputs,
         Steinberg::int32 numSamples);
     
@@ -84,7 +73,7 @@ public:
     
     // Parameter changes processing
     void processParameterChanges(
-        Steinberg::Vst::IParamValueQueue* queues,
+        Steinberg::Vst::IParamValueQueue* queue,
         Steinberg::int32 numSamples);
     
     // Get sample rate
